@@ -35,8 +35,7 @@ packages:
 
 • numpy ≥ 1.21, matplotlib ≥ 3.6.2 and math (default packages);
 
-• pyserial, for setting the serial communication through the RS232 port between the Abakus
-particle counter and the PC;
+• pyserial, for setting the serial communication through the RS232 port between the SPOS instrument and the PC;
 
 • PyQt5, pyqtgraph, qtwidgets required for the graphical user interface;
 
