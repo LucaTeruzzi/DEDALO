@@ -136,14 +136,14 @@
         <item row="0" column="0">
          <widget class="QLabel" name="label_ak1">
           <property name="text">
-           <string>©   L.Teruzzi, L.Cremonesi, C.Artoni --- EuroCold Lab @ DISAT University of Milano-Bicocca                                                                                                                                               </string>
+           <string>©   L.Teruzzi, L.Cremonesi, M.A.C. Potenza --- Department of Physics, University of Milan, Milan (IT)                                                                                                                               </string>
           </property>
          </widget>
         </item>
         <item row="1" column="0">
          <widget class="QLabel" name="label_ak2">
           <property name="text">
-           <string>European Cold Laboratory Facilities, Department of Earth and Environmental Sciences</string>
+           <string>Thanks to: European Cold Laboratory Facilities, Department of Earth and Environmental Sciences, University of Milano-Bicocca, Milan (IT)</string>
           </property>
          </widget>
         </item>

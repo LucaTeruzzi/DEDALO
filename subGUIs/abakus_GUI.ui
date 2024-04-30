@@ -452,7 +452,7 @@
         <item>
          <widget class="QGroupBox" name="groupBox_err">
           <property name="title">
-           <string>Error, warnings and system messagaes</string>
+           <string>Error, warnings and system messages</string>
           </property>
           <layout class="QVBoxLayout" name="verticalLayout_6">
            <item>
