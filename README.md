@@ -83,7 +83,7 @@ New issues and pull requests are welcomed.
 
 If you use this code in a publication, please cite: 
 
-L. Teruzzi, L. Cremonesi and M.A.C. Potenza, "DEDALO: Device for Enhanced Dust Analyses with Light Obscuration sensors", J. Instrum. (in review)
+L. Teruzzi, L. Cremonesi and M.A.C. Potenza, "DEDALO: Device for Enhanced Dust Analyses with Light Obscuration sensors", JINST 19 P04035 (2024).
 
 # References
 
