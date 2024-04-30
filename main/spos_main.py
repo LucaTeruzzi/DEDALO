@@ -23,7 +23,7 @@
 
 
 import sys, numpy as np, math as m, itertools, os, serial, serial.tools.list_ports, pyqtgraph as pg     # Import the required libraries
-import matplotlib.pyplot as plt, traceback
+import matplotlib.pyplot as plt, traceback, matplotlib as mpl
 import pyqtgraph.exporters
 from datetime import datetime
 from PyQt5.QtCore import *
@@ -34,13 +34,19 @@ from PyQt5.QtWidgets import *
 import warnings
 warnings.filterwarnings("ignore")
 
-_PATH = os.path.abspath(os.path.realpath(__file__))[2:-15].replace('\\', '/')
+_PATH = os.path.abspath(os.path.realpath(__file__))[2:-17].replace('\\', '/')
 
 sys.path.insert(0, _PATH+'methods/')
 from abakus_class import Abakus
 from my_widgets import First_Panel, Second_Panel, Third_Panel
 from data_correction import Data_corrector
 from plot_correction import CData_Plotter
+
+mpl.rcParams['font.family'] = 'sans-serif'
+mpl.rcParams['mathtext.fontset'] = 'custom'
+mpl.rcParams['mathtext.rm'] = 'sans'
+mpl.rcParams['mathtext.it'] = 'sans:italic'
+mpl.rcParams['mathtext.default'] = 'it'
 
 
 ############################################################################################################################################################
@@ -361,7 +367,7 @@ class Ui(QtWidgets.QMainWindow, object):
 
     def on_calibration_clicked(self):
 
-        try: os.popen('python '+_PATH+'methods/calibration.py ' + _PATH)
+        try: os.popen('python3 ../methods/calibration.py')
         
         except:
 
@@ -372,7 +378,7 @@ class Ui(QtWidgets.QMainWindow, object):
                 e_type, e_val, e_tb = sys.exc_info()
                 traceback.print_exception(e_type, e_val, e_tb, file=fh)
 
-            os.popen('python '+_PATH+'methods/error_handling.py log_files/report.log')
+            os.popen('python3 '+_PATH+'methods/error_handling.py log_files/report.log')
             sys.exit()
         
     
@@ -381,7 +387,7 @@ class Ui(QtWidgets.QMainWindow, object):
 
     def on_help_clicked(self):
 
-        try: os.system('start C:'+_PATH+'manual/manual.pdf')
+        try: os.system('start ../manual/manual.pdf')
         
         except:
 
@@ -530,21 +536,23 @@ class Ui(QtWidgets.QMainWindow, object):
                     plt.suptitle('Abakus voltage calibration curve', size=16, y=0.97) 
                     figure.subplots_adjust(left=0.13, right=0.975, top=0.93, bottom=0.105)
                     a = figure.add_subplot(111)
-                    a.set_ylabel('Diameter [$\mu$m]', fontsize=12)
-                    a.set_xlabel('Voltage [mV]', fontsize=12)
+                    a.tick_params(axis='both', which='major', labelsize=20)
+                    a.set_ylabel('Diameter [$\mathrm{\mu}$m]', fontsize=20, labelpad=20)
+                    a.set_xlabel('Voltage [V]', fontsize=20, labelpad=20)
                     for j in range(0, len(self.abakus_noises)-1): 
                         x_values.append(float(self.abakus_noises[j].split()[4]))
                         y_values.append(float(self.abakus_noises[j].split()[1]))
-                    x_values, y_values = np.array(x_values), np.array(y_values)
+                    x_values, y_values = np.array(x_values)/1000, np.array(y_values)
                     
                     poly_coefficients, cov_matrix = np.polyfit(x_values, y_values, 2, full=False, cov=True)
                     voltage_fit = np.poly1d(poly_coefficients)
-                    voltage_fit_lower, voltage_fit_upper = np.poly1d(poly_coefficients-3*np.diag(cov_matrix)), np.poly1d(poly_coefficients+3*np.diag(cov_matrix))
+                    voltage_fit_lower, voltage_fit_upper = np.poly1d(poly_coefficients-2*np.diag(cov_matrix)), np.poly1d(poly_coefficients+2*np.diag(cov_matrix))
                     a.plot(x_values, voltage_fit(x_values), 'k', linewidth=2, label='fit')
                     a.plot(x_values, voltage_fit_lower(x_values), 'k', linewidth=0.2); a.plot(x_values, voltage_fit_upper(x_values), 'k', linewidth=0.2)
-                    a.fill_between(x_values, voltage_fit_upper(x_values), voltage_fit_lower(x_values), color='y', label='3σ deviation')
+                    a.fill_between(x_values, voltage_fit_upper(x_values), voltage_fit_lower(x_values), color='y', label='2σ deviation')
                     a.plot(x_values, y_values, '^', markersize=8, markerfacecolor='orange', markeredgecolor='r', markeredgewidth=3, label='voltage calibration')
-                    a.legend(loc='lower right')
+                    a.legend(loc='lower right', prop={'size': 18})
+                    figure.tight_layout()
                     plt.show()
                 except: print('')
 
@@ -556,7 +564,7 @@ class Ui(QtWidgets.QMainWindow, object):
                 plt.suptitle('Abakus voltage calibration curve', size=16, y=0.97) 
                 figure.subplots_adjust(left=0.085, right=0.960, top=0.93, bottom=0.100)
                 a = figure.add_subplot(111)
-                a.set_ylabel('Diameter [$\mu$m]', fontsize=12)
+                a.set_ylabel('Diameter [$\mathrm{\mu}$m]', fontsize=12)
                 a.set_xlabel('Voltage [mV]', fontsize=12)
                 for j in range(0, len(self.noise[1])-2, 2): 
                     x_values.append(float(10*self.noise[1][j]))
@@ -708,20 +716,17 @@ class Ui(QtWidgets.QMainWindow, object):
 
     def on_data_correction_execute(self):
 
-        self.sizes_ext_cal, self.sizes_RI_cal, self.sizes_ar_cal = np.zeros(len(self.sizes)), np.zeros(len(self.sizes)), np.zeros(len(self.sizes))
+        self.sizes_RI_cal, self.sizes_ar_cal = np.zeros(len(self.sizes)), np.zeros(len(self.sizes))
         self.ref_index_Re, self.ref_index_Im = 0, 0
         self.diameters_Cext, self.Cext_polystirene, self.selected_Cext, self.poly_fit = np.zeros(len(self.sizes)), np.zeros(len(self.sizes)), np.zeros(len(self.sizes)), np.poly1d(1)
-
-        if self.correction_window.instrumental_correction_label==True: self.sizes_ext_cal = self.correction_window.instrumental_calibration_correction(self.sizes)
         
         if self.correction_window.ref_index_correction_label==True: 
-            if self.correction_window.instrumental_correction_label==True: self.sizes_RI_cal, self.ref_index_Re, self.ref_index_Im, self.diameters_Cext, self.Cext_polystirene, self.selected_Cext, self.poly_fit = self.correction_window.refractive_index_calibration_correction(self.sizes_ext_cal)
-            else: self.sizes_RI_cal, self.ref_index_Re, self.ref_index_Im, self.diameters_Cext, self.Cext_polystirene, self.selected_Cext, self.poly_fit = self.correction_window.refractive_index_calibration_correction(self.sizes)
+            self.sizes_RI_cal, self.ref_index_Re, self.ref_index_Im, self.diameters_Cext, self.Cext_polystirene, self.selected_Cext, self.poly_fit = self.correction_window.refractive_index_calibration_correction(self.sizes)
         
         if self.correction_window.aspect_ratio_correction_label==True: self.sizes_ar_cal = self.correction_window.aspect_ratio_calibration_correction(self.sizes)
 
-        self.correction_labels = [self.correction_window.instrumental_correction_label, self.correction_window.ref_index_correction_label, self.correction_window.aspect_ratio_correction_label]
-        self.x_data = [self.sizes[:-1], self.sizes_ext_cal[:-1], self.sizes_RI_cal[:-1], self.sizes_ar_cal[:-1]]
+        self.correction_labels = [self.correction_window.ref_index_correction_label, self.correction_window.aspect_ratio_correction_label]
+        self.x_data = [self.sizes[:-1], self.sizes_RI_cal[:-1], self.sizes_ar_cal[:-1]]
 
         self.correction_window.close()
         self.first_panel.btn_correct.setChecked(False)
@@ -828,10 +833,10 @@ class Ui(QtWidgets.QMainWindow, object):
         self.incremental_d_and_time_win, self.incremental_d_plt, self.curve_incremental_d, self.curve_incremental_d_upd, self.curve_incremental_d_cal, self.time2_plt, self.curve_time2, self.curve_time2_avg = self.second_panel.incremental_d_and_time_plot('b', 'r', '#028a0f', 'r', 'k', 4, QtCore.Qt.SolidLine, 4, QtCore.Qt.DashLine, (255,0,0,100))
         self.volt_win, self.volt_plt, self.curve_volt, self.curve_ram = self.third_panel.volt_plot('b', 'r', 4, QtCore.Qt.SolidLine)
 
-        self.curve_single_d.setData(self.sizes[:-1], np.array(self.data1.loc[0])[:-1], stepMode='right')
+        self.curve_single_d.setData(self.sizes[1:-1], np.array(self.data1.loc[0])[1:-1], stepMode='right')
         self.curve_time1.setData(np.linspace(0, len(self.time_data)-1, len(self.time_data)), self.time_data, stepMode='right')
         self.curve_time1_avg.setData(np.linspace(0, self.data1.shape[0]-1, self.data1.shape[0]), np.mean(self.time_data)*np.ones(self.data1.shape[0]))
-        self.curve_incremental_d.setData(self.sizes[:-1], self.h1[:-1], stepMode='right')
+        self.curve_incremental_d.setData(self.sizes[1:-1], self.h1[1:-1], stepMode='right')
         self.curve_time2.setData(np.linspace(0, len(self.time_data)-1, len(self.time_data)), self.time_data, stepMode='right')
         self.curve_time2_avg.setData(np.linspace(0, self.data1.shape[0]-1, self.data1.shape[0]), np.mean(self.time_data)*np.ones(self.data1.shape[0]))
         self.curve_volt.setData(np.linspace(0, self.data1.shape[0]-1, self.data1.shape[0]), self.volt1)
@@ -913,9 +918,9 @@ class Ui(QtWidgets.QMainWindow, object):
 
         for j in range(0, len(self.noise[1]), 2):
             if j<10: 
-                if j+2!=10: self.output_noise.append(str((j+1)//2 + 1)+') '+str(self.noise[1][j+1])+' µm\t--->\t'+str(10*self.noise[1][j])+' mV')
-                else: self.output_noise.append(str((j+1)//2 + 1)+') '+str(self.noise[1][j+1])+' µm\t--->\t'+str(10*self.noise[1][j])+' mV')
-            elif j>=10: self.output_noise.append(str((j+1)//2 + 1)+') '+str(self.noise[1][j+1])+' µm\t--->\t'+str(10*self.noise[1][j])+' mV')
+                if j+2!=10: self.output_noise.append(str((j+1)//2 + 1)+') '+str(self.noise[1][j+1])+' um\t--->\t'+str(10*self.noise[1][j])+' mV')
+                else: self.output_noise.append(str((j+1)//2 + 1)+') '+str(self.noise[1][j+1])+' um\t--->\t'+str(10*self.noise[1][j])+' mV')
+            elif j>=10: self.output_noise.append(str((j+1)//2 + 1)+') '+str(self.noise[1][j+1])+' um\t--->\t'+str(10*self.noise[1][j])+' mV')
 
         self.prev_time = datetime.now()
         self.time_data, self.time_volt, self.time_ram = [0], [], []
@@ -1008,8 +1013,8 @@ class Ui(QtWidgets.QMainWindow, object):
             self.prev_time = datetime.now()
             self.output.append(self.prev_time.strftime("%d-%m-%Y_%H:%M:%S.%f")[11:-7]+'\t\t'+str(self.counts_per_cycle)+' pt\t\t'+str(sum(self.time_data))+' pt') 
 
-            self.curve_single_d.setData(self.channels[1][:-1], (self.incremental_data - self.data_bkp)[:-1], stepMode='right')
-            self.curve_incremental_d.setData(self.channels[1][:-1], self.incremental_data[:-1], stepMode='right')
+            self.curve_single_d.setData(self.channels[1][1:-1], (self.incremental_data - self.data_bkp)[1:-1], stepMode='right')
+            self.curve_incremental_d.setData(self.channels[1][1:-1], self.incremental_data[1:-1], stepMode='right')
             self.curve_time1.setData(np.linspace(0, len(self.time_data), len(self.time_data)+1)[:-1], np.array(self.time_data), stepMode='left')
             self.curve_time2.setData(np.linspace(0, len(self.time_data), len(self.time_data)+1)[:-1], np.array(self.time_data), stepMode='left')
             self.curve_volt.setData(np.linspace(0, len(self.time_volt), len(self.time_volt)+1)[:-1], np.array(self.time_volt))
