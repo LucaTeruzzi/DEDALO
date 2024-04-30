@@ -75,9 +75,8 @@ class CData_Plotter(QtWidgets.QMainWindow, object):
         self.save_path = save_path                                                                      # Path where to save the results
         self.save_name = save_name                                                                      # Output file name
         self.correction_labels = labels_correct                                                         # Labels for size distribution correction,  referring both to extinction correction, 
-        self.ext_correction = self.correction_labels[0]                                                 # refractive index correction and aspect-ratio correction
-        self.RI_correction = self.correction_labels[1]
-        self.ar_correction = self.correction_labels[2]
+        self.RI_correction = self.correction_labels[0]                                                 # refractive index correction and aspect-ratio correction
+        self.ar_correction = self.correction_labels[1]
         self.linewidth = 4                                                                              # Plot linewidth
         self.linestyle = QtCore.Qt.SolidLine                                                            # Plot linestyle
 
@@ -85,7 +84,7 @@ class CData_Plotter(QtWidgets.QMainWindow, object):
         else: os.makedirs(self.save_path)
 
         self.output_file = open(self.save_path+self.save_name+'_summary.txt', 'w')                      # Output file initialization
-        self.output_file.write('Raw d [$\mu$m]\t\tExt. corrected d [$\mu$m]\tRI corrected d [$\mu$m]\t\tAR corrected d [$\mu$m]\t\t# counts\n')
+        self.output_file.write('Raw d [$\mu$m]\t\tRI corrected d [$\mu$m]\t\tAR corrected d [$\mu$m]\t\t# counts\n')
 
         self.y_data = y_data                                                                            # Number of counts for each Abakus channel (= particle diameter)
         self.time_data = y_time_data
@@ -93,9 +92,8 @@ class CData_Plotter(QtWidgets.QMainWindow, object):
         self.dataset = full_dataset
 
         self.raw_x_data = self.x_data[0]
-        self.ext_x_data = self.x_data[1]
-        self.RI_x_data = self.x_data[2]
-        self.ar_x_data = self.x_data[3]
+        self.RI_x_data = self.x_data[1]
+        self.ar_x_data = self.x_data[2]
         self.error = self.raw_x_data[1] - self.raw_x_data[0]
 
         if not all(self.diameters_Cext)==0:
@@ -106,47 +104,8 @@ class CData_Plotter(QtWidgets.QMainWindow, object):
             self.Cext_polystirene = self.Cext_polystirene[self.start:self.stop]
             self.selected_Cext = self.selected_Cext[self.start:self.stop]
 
-
-        self.ext_win = pg.GraphicsLayoutWidget(self.widget, show=True)                                  # STEP 2: calibrated size distribution visualizaton
-        self.ext_win.setGeometry(QtCore.QRect(960, 0, 960, 400))
-        pg.setConfigOptions(antialias=True)
-        self.ext_plt = self.ext_win.addPlot()
-        self.ext_plt.setTitle('<b>Instrumental-calibrated size distribution')
-        self.ext_plt.setLabel('bottom', 'd [\u03bc'+'m]')
-        self.ext_plt.setLabel('left', '# counts')
-        self.ext_lr = pg.LinearRegionItem([self.ext_x_data[-1], self.ext_x_data[-1]], pen=pg.mkPen(width=2.5), brush=(255,255,255,100))
-        self.ext_lr.setZValue(-10)
-        self.ext_plt.addItem(self.ext_lr)
-        self.ext_range = self.ext_lr.getRegion()
-        self.ext_curve = self.ext_plt.plot(pen=pg.mkPen('g', width=self.linewidth, style=self.linestyle), fillLevel=0, brush=(0, 255, 0, 100))
-        self.ext_curve_upd = self.ext_plt.plot(pen=pg.mkPen('#03c04a', width=self.linewidth, style=self.linestyle), fillLevel=0, brush='#aef359')
-        self.ext_legend = QtWidgets.QTextBrowser(self.widget)
-        self.ext_legend.setGeometry(QtCore.QRect(1700, 70, 150, 120))
-        self.ext_legend.setFontPointSize(8)
-        if self.ext_correction==True:
-            self.ext_curve.setData(self.ext_x_data, self.y_data, stepMode='right')
-            self.ext_legend.append('<b>Particles:</b>  '+'{:.2e}'.format(sum(self.y_data))+' pts')  
-            self.ext_legend.append('<b>Peak:</b>        '+'{:.02f}'.format(self.ext_x_data[np.where(self.y_data==np.amax(self.y_data))[0]][0])+' ± '+'{:.02f}'.format(self.error)+' µm')
-            self.ext_legend.append('<b>M. avg:</b>     '+'{:.02f}'.format(np.mean(self.ext_x_data))+' ± '+'{:.02f}'.format(self.error/np.sqrt(len(self.ext_x_data)))+' µm')
-            try: self.ext_legend.append('<b>W. avg.:</b>   '+'{:.02f}'.format(np.average(self.ext_x_data, weights=self.y_data))+' ± '+'{:.02f}'.format(self.error*np.sqrt(sum(self.y_data**2))/sum(self.y_data))+' µm')
-            except: self.ext_legend.append('<b>W. avg.:</b> nan')
-            self.ext_legend.append('<b>S.D.:</b>         '+'{:.02f}'.format(np.sqrt(np.var((self.ext_x_data))))+' µm')
-            self.ext_legend.append('<b>1st qnt.:</b>   '+'{:.02f}'.format(np.quantile(self.ext_x_data, 0.25))+' µm')
-            self.ext_legend.append('<b>2nd qnt.:</b>  '+'{:.02f}'.format(np.median(self.ext_x_data))+' µm')
-            self.ext_legend.append('<b>3rd qnt.:</b>   '+'{:.02f}'.format(np.quantile(self.ext_x_data, 0.75))+' µm')
-        else:
-            self.ext_legend.append('<b>Particles:</b>   '+'-.--e- pts')  
-            self.ext_legend.append('<b>Peak:</b>        '+' -.-- ± -.-- µm')
-            self.ext_legend.append('<b>M. avg:</b>     '+' -.-- ± -.-- µm')
-            self.ext_legend.append('<b>W. avg.:</b>   '+' -.-- ± -.-- µm')
-            self.ext_legend.append('<b>S.D.:</b>         '+' -.-- µm')
-            self.ext_legend.append('<b>1st qnt.:</b>   '+' -.-- µm')
-            self.ext_legend.append('<b>2nd qnt.:</b>  '+' -.-- µm')
-            self.ext_legend.append('<b>3rd qnt.:</b>   '+' -.-- µm')
-
-
         self.RI_tab_win = QTabWidget(self.widget)                                                       # STEP 3: refractive index corrected size distribution visualizaton
-        self.RI_tab_win.setGeometry(QtCore.QRect(0, 395, 965, 410))
+        self.RI_tab_win.setGeometry(QtCore.QRect(960, 0, 960, 600))
         self.RI_tab_win.setTabPosition(QTabWidget.West)
         self.RI_win = pg.GraphicsLayoutWidget()
         self.cext_win = pg.GraphicsLayoutWidget()
@@ -169,10 +128,10 @@ class CData_Plotter(QtWidgets.QMainWindow, object):
         self.RI_curve = self.RI_plt.plot(pen=pg.mkPen('r', width=self.linewidth, style=self.linestyle), fillLevel=0, brush=(255,100,0,100))
         self.RI_curve_upd = self.RI_plt.plot(pen=pg.mkPen('y', width=self.linewidth, style=self.linestyle), fillLevel=0, brush=(255,100,0,100))
         self.RI_legend = QtWidgets.QTextBrowser(self.widget)
-        self.RI_legend.setGeometry(QtCore.QRect(750, 465, 150, 120))
+        self.RI_legend.setGeometry(QtCore.QRect(1700, 70, 150, 120))
         self.RI_legend.setFontPointSize(8)
         if self.RI_correction==True:
-            self.RI_curve.setData(self.RI_x_data, self.y_data, stepMode='right')
+            self.RI_curve.setData(self.RI_x_data[1:], self.y_data[1:], stepMode='right')
             self.RI_legend.append('<b>Particles:</b>  '+'{:.2e}'.format(sum(self.y_data))+' pts')  
             self.RI_legend.append('<b>Peak:</b>        '+'{:.02f}'.format(self.RI_x_data[np.where(self.y_data==np.amax(self.y_data))[0]][0])+' ± '+'{:.02f}'.format(self.error)+' µm')
             self.RI_legend.append('<b>M. avg:</b>     '+'{:.02f}'.format(np.mean(self.RI_x_data))+' ± '+'{:.02f}'.format(self.error/np.sqrt(len(self.RI_x_data)))+' µm')
@@ -221,7 +180,7 @@ class CData_Plotter(QtWidgets.QMainWindow, object):
         
 
         self.raw_win = pg.GraphicsLayoutWidget(self.widget, show=True)                                  # STEP 1: raw size distribution visualizaton
-        self.raw_win.setGeometry(QtCore.QRect(0, 0, 960, 400))
+        self.raw_win.setGeometry(QtCore.QRect(0, 0, 960, 600))
         pg.setConfigOptions(antialias=True)
         self.raw_plt = self.raw_win.addPlot()
         self.raw_plt.setTitle('<b>Raw size distribution')
@@ -233,7 +192,7 @@ class CData_Plotter(QtWidgets.QMainWindow, object):
         self.raw_range = self.raw_lr.getRegion()
         self.raw_curve = self.raw_plt.plot(pen=pg.mkPen('b', width=self.linewidth, style=self.linestyle), fillLevel=0, brush=(50,50,255,100))
         self.raw_curve_upd = self.raw_plt.plot(pen=pg.mkPen('#1f456e', width=self.linewidth, style=self.linestyle), fillLevel=0, brush='#82eefd')
-        self.raw_curve.setData(self.raw_x_data, self.y_data, stepMode='right')
+        self.raw_curve.setData(self.raw_x_data[1:], self.y_data[1:], stepMode='right')
         self.raw_legend = QtWidgets.QTextBrowser(self.widget)
         self.raw_legend.setGeometry(QtCore.QRect(750, 70, 150, 120))
         self.raw_legend.setFontPointSize(8)
@@ -246,48 +205,10 @@ class CData_Plotter(QtWidgets.QMainWindow, object):
         self.raw_legend.append('<b>1st qnt.:</b>   '+'{:.02f}'.format(np.quantile(self.raw_x_data, 0.25))+' µm')
         self.raw_legend.append('<b>2nd qnt.:</b>  '+'{:.02f}'.format(np.median(self.raw_x_data))+' µm')
         self.raw_legend.append('<b>3rd qnt.:</b>   '+'{:.02f}'.format(np.quantile(self.raw_x_data, 0.75))+' µm')
-
-
-        self.ar_win = pg.GraphicsLayoutWidget(self.widget, show=True)                                   # STEP 4: aspect-ratio corrected size distribution visualizaton
-        self.ar_win.setGeometry(QtCore.QRect(960, 400, 960, 400))                                       # At the moment this section is still and defintion and develpment, it will be
-        pg.setConfigOptions(antialias=True)                                                             # completed in future software releases
-        self.ar_plt = self.ar_win.addPlot()
-        self.ar_plt.setTitle('<b>Aspect-ratio corrected size distribution')
-        self.ar_plt.setLabel('bottom', 'd [\u03bc'+'m]')
-        self.ar_plt.setLabel('left', '# counts')
-        self.ar_lr = pg.LinearRegionItem([self.ar_x_data[-1], self.ar_x_data[-1]], pen=pg.mkPen(width=2.5), brush=(255,255,255,100))
-        self.ar_lr.setZValue(-10)
-        self.ar_plt.addItem(self.ar_lr)
-        self.ar_range = self.ar_lr.getRegion()
-        self.ar_curve = self.ar_plt.plot(pen=pg.mkPen('#ff7c2e', width=self.linewidth, style=self.linestyle), fillLevel=0, brush=(255,255,0,100))
-        self.ar_curve_upd = self.ar_plt.plot(pen=pg.mkPen('r', width=self.linewidth, style=self.linestyle), fillLevel=0, brush=(255,255,0,100))
-        self.ar_legend = QtWidgets.QTextBrowser(self.widget)
-        self.ar_legend.setGeometry(QtCore.QRect(1700, 465, 150, 120))
-        self.ar_legend.setFontPointSize(8)
-        if self.ar_correction==True:
-            self.ar_curve.setData(self.ar_x_data, self.y_data, stepMode='right')
-            self.ar_legend.append('<b>Particles:</b>  '+'{:.2e}'.format(sum(self.y_data))+' pts')  
-            self.ar_legend.append('<b>Peak:</b>        '+'{:.02f}'.format(self.ar_x_data[np.where(self.y_data==np.amax(self.y_data))[0]][0])+' ± '+'{:.02f}'.format(self.error)+' µm')
-            self.ar_legend.append('<b>M. avg:</b>     '+'{:.02f}'.format(np.mean(self.ar_x_data))+' ± '+'{:.02f}'.format(self.error/np.sqrt(len(self.ar_x_data)))+' µm')
-            try: self.ar_legend.append('W. avg.:</b>   '+'{:.02f}'.format(np.average(self.ar_x_data, weights=self.y_data))+' ± '+'{:.02f}'.format(self.error*np.sqrt(sum(self.y_data**2))/sum(self.y_data))+' µm')
-            except: self.ar_legend.append('W. avg.:</b> nan')
-            self.ar_legend.append('<b>S.D.:</b>         '+'{:.02f}'.format(np.sqrt(np.var((self.ar_x_data))))+' µm')
-            self.ar_legend.append('<b>1st qnt.:</b>   '+'{:.02f}'.format(np.quantile(self.ar_x_data, 0.25))+' µm')
-            self.ar_legend.append('<b>2nd qnt.:</b>  '+'{:.02f}'.format(np.median(self.ar_x_data))+' µm')
-            self.ar_legend.append('<b>3rd qnt.:</b>   '+'{:.02f}'.format(np.quantile(self.ar_x_data, 0.75))+' µm')
-        else:
-            self.ar_legend.append('<b>Particles:</b>   '+'-.--e- pts')  
-            self.ar_legend.append('<b>Peak:</b>        '+' -.-- ± -.-- µm')
-            self.ar_legend.append('<b>M. avg:</b>     '+' -.-- ± -.-- µm')
-            self.ar_legend.append('<b>W. avg.:</b>   '+' -.-- ± -.-- µm')
-            self.ar_legend.append('<b>S.D.:</b>         '+' -.-- µm')
-            self.ar_legend.append('<b>1st qnt.:</b>   '+' -.-- µm')
-            self.ar_legend.append('<b>2nd qnt.:</b>  '+' -.-- µm')
-            self.ar_legend.append('<b>3rd qnt.:</b>   '+' -.-- µm')
         
 
         self.time_win = pg.GraphicsLayoutWidget(self.widget, show=True)
-        self.time_win.setGeometry(QtCore.QRect(0, 800, 1920, 210))
+        self.time_win.setGeometry(QtCore.QRect(0, 605, 1920, 405))
         pg.setConfigOptions(antialias=True)
         self.time_plt = self.time_win.addPlot()
         self.time_plt.setTitle('<b>Time distribution')
@@ -308,23 +229,11 @@ class CData_Plotter(QtWidgets.QMainWindow, object):
         self.update_raw.clicked.connect(self.update_plot)
         self.update_raw.setStyleSheet("QPushButton { color: green; font: bold 11px; }")
 
-        self.update_ext = QPushButton(self.widget)
-        self.update_ext.setGeometry(QtCore.QRect(1700, 13, 85, 25))
-        self.update_ext.setText('Get stats')
-        self.update_ext.clicked.connect(self.update_plot)
-        self.update_ext.setStyleSheet("QPushButton { color: green; font: bold 11px; }")
-
         self.update_RI = QPushButton(self.widget)
-        self.update_RI.setGeometry(QtCore.QRect(750, 410, 85, 25))
+        self.update_RI.setGeometry(QtCore.QRect(1700, 13, 85, 25))
         self.update_RI.setText('Get stats')
         self.update_RI.clicked.connect(self.update_plot)
         self.update_RI.setStyleSheet("QPushButton { color: green; font: bold 11px; }")
-
-        self.update_ar = QPushButton(self.widget)
-        self.update_ar.setGeometry(QtCore.QRect(1700, 412, 85, 25))
-        self.update_ar.setText('Get stats')
-        self.update_ar.clicked.connect(self.update_plot)
-        self.update_ar.setStyleSheet("QPushButton { color: green; font: bold 11px; }")
 
         self.update_time = QPushButton(self.widget)
         self.update_time.setGeometry(QtCore.QRect(1190, 812, 85, 25))
@@ -332,7 +241,7 @@ class CData_Plotter(QtWidgets.QMainWindow, object):
         self.update_time.clicked.connect(self.update_time_plot)
         self.update_time.setStyleSheet("QPushButton { color: green; font: bold 11px; }")
 
-        for i in range(0, len(self.raw_x_data)): self.output_file.write('{:.02f}'.format(self.raw_x_data[i])+'\t\t\t'+'{:.02f}'.format(self.ext_x_data[i])+'\t\t\t\t'+'{:.02f}'.format(self.RI_x_data[i])+'\t\t\t\t'+'{:.02f}'.format(self.ar_x_data[i])+'\t\t\t\t'+str(self.y_data[i])+'\n')
+        for i in range(0, len(self.raw_x_data)): self.output_file.write('{:.02f}'.format(self.raw_x_data[i])+'\t\t\t'+'{:.02f}'.format(self.RI_x_data[i])+'\t\t\t\t'+'{:.02f}'.format(self.ar_x_data[i])+'\t\t\t\t'+str(self.y_data[i])+'\n')
 
 
     # -----------------------------------------------------------------------------------------------------------------------------------------------------#
@@ -343,9 +252,7 @@ class CData_Plotter(QtWidgets.QMainWindow, object):
         self.indexes = len(self.raw_x_data)
 
         self.new_raw_range = self.raw_lr.getRegion()
-        self.new_ext_range = self.ext_lr.getRegion()
         self.new_RI_range = self.RI_lr.getRegion()
-        self.new_ar_range = self.ar_lr.getRegion()
 
         if self.new_raw_range!=self.raw_range: 
             self.indexes = np.where((self.raw_x_data >= self.new_raw_range[0]) & (self.raw_x_data <= self.new_raw_range[1]))[0]
@@ -362,21 +269,6 @@ class CData_Plotter(QtWidgets.QMainWindow, object):
             self.raw_legend.append('2nd qnt.:  '+'{:.02f}'.format(np.median(self.raw_x_data[self.indexes]))+' µm')
             self.raw_legend.append('3rd qnt.:   '+'{:.02f}'.format(np.quantile(self.raw_x_data[self.indexes], 0.75))+' µm')
 
-        if self.new_ext_range!=self.ext_range: 
-            self.indexes = np.where((self.ext_x_data >= self.new_ext_range[0]) & (self.ext_x_data <= self.new_ext_range[1]))[0]
-            self.ext_lr.setRegion([self.new_ext_range[0], self.new_ext_range[1]])
-            self.ext_curve_upd.setData(self.ext_x_data[self.indexes], self.y_data[self.indexes], stepMode='right')
-            self.ext_legend.clear()
-            self.ext_legend.append('Particles:  '+'{:.2e}'.format(sum(self.y_data[self.indexes]))+' pts')  
-            self.ext_legend.append('Peak:        '+'{:.02f}'.format(self.ext_x_data[np.where(self.y_data==np.amax(self.y_data[self.indexes]))[0]][0])+' ± '+'{:.02f}'.format(self.error)+' µm')
-            self.ext_legend.append('M. avg:     '+'{:.02f}'.format(np.mean(self.ext_x_data[self.indexes]))+' ± '+'{:.02f}'.format(self.error/np.sqrt(len(self.ext_x_data[self.indexes])))+' µm')
-            try: self.ext_legend.append('W. avg.:   '+'{:.02f}'.format(np.average(self.ext_x_data[self.indexes], weights=self.y_data[self.indexes]))+' ± '+'{:.02f}'.format(self.error*np.sqrt(sum(self.y_data[self.indexes]**2))/sum(self.y_data[self.indexes]))+' µm')
-            except: self.ext_legend.append('W. avg.: nan')
-            self.ext_legend.append('S.D.:         '+'{:.02f}'.format(np.sqrt(np.var((self.ext_x_data[self.indexes]))))+' µm')
-            self.ext_legend.append('1st qnt.:   '+'{:.02f}'.format(np.quantile(self.ext_x_data[self.indexes], 0.25))+' µm')
-            self.ext_legend.append('2nd qnt.:  '+'{:.02f}'.format(np.median(self.ext_x_data[self.indexes]))+' µm')
-            self.ext_legend.append('3rd qnt.:   '+'{:.02f}'.format(np.quantile(self.ext_x_data[self.indexes], 0.75))+' µm')
-
         if self.new_RI_range!=self.RI_range: 
             self.indexes = np.where((self.RI_x_data >= self.new_RI_range[0]) & (self.RI_x_data <= self.new_RI_range[1]))[0]
             self.RI_lr.setRegion([self.new_RI_range[0], self.new_RI_range[1]])
@@ -392,25 +284,8 @@ class CData_Plotter(QtWidgets.QMainWindow, object):
             self.RI_legend.append('2nd qnt.:  '+'{:.02f}'.format(np.median(self.RI_x_data[self.indexes]))+' µm')
             self.RI_legend.append('3rd qnt.:   '+'{:.02f}'.format(np.quantile(self.RI_x_data[self.indexes], 0.75))+' µm')
 
-        if self.new_ar_range!=self.ar_range: 
-            self.indexes = np.where((self.ar_x_data >= self.new_ar_range[0]) & (self.ar_x_data <= self.new_ar_range[1]))[0]
-            self.ar_lr.setRegion([self.new_ar_range[0], self.new_ar_range[1]])
-            self.ar_curve_upd.setData(self.ar_x_data[self.indexes], self.y_data[self.indexes], stepMode='right')
-            self.ar_legend.clear()
-            self.ar_legend.append('Particles:  '+'{:.2e}'.format(sum(self.y_data[self.indexes]))+' pts')  
-            self.ar_legend.append('Peak:        '+'{:.02f}'.format(self.ar_x_data[np.where(self.y_data==np.amax(self.y_data[self.indexes]))[0]][0])+' ± '+'{:.02f}'.format(self.error)+' µm')
-            self.ar_legend.append('M. avg:     '+'{:.02f}'.format(np.mean(self.ar_x_data[self.indexes]))+' ± '+'{:.02f}'.format(self.error/np.sqrt(len(self.ar_x_data[self.indexes])))+' µm')
-            try: self.ar_legend.append('W. avg.:   '+'{:.02f}'.format(np.average(self.ar_x_data[self.indexes], weights=self.y_data[self.indexes]))+' ± '+'{:.02f}'.format(self.error*np.sqrt(sum(self.y_data[self.indexes]**2))/sum(self.y_data[self.indexes]))+' µm')
-            except: self.ar_legend.append('W. avg.: nan')
-            self.ar_legend.append('S.D.:         '+'{:.02f}'.format(np.sqrt(np.var((self.ar_x_data[self.indexes]))))+' µm')
-            self.ar_legend.append('1st qnt.:   '+'{:.02f}'.format(np.quantile(self.ar_x_data[self.indexes], 0.25))+' µm')
-            self.ar_legend.append('2nd qnt.:  '+'{:.02f}'.format(np.median(self.ar_x_data[self.indexes]))+' µm')
-            self.ar_legend.append('3rd qnt.:   '+'{:.02f}'.format(np.quantile(self.ar_x_data[self.indexes], 0.75))+' µm')
-
         self.raw_range = self.raw_lr.getRegion()
-        self.ext_range = self.ext_lr.getRegion()
         self.RI_range = self.RI_lr.getRegion()
-        self.ar_range = self.ar_lr.getRegion()
 
     
     # -----------------------------------------------------------------------------------------------------------------------------------------------------#
@@ -442,19 +317,6 @@ class CData_Plotter(QtWidgets.QMainWindow, object):
             self.raw_legend.append('1st qnt.:   '+'{:.02f}'.format(np.quantile(self.raw_x_data[self.indexes], 0.25))+' µm')
             self.raw_legend.append('2nd qnt.:  '+'{:.02f}'.format(np.median(self.raw_x_data[self.indexes]))+' µm')
             self.raw_legend.append('3rd qnt.:   '+'{:.02f}'.format(np.quantile(self.raw_x_data[self.indexes], 0.75))+' µm')
-
-        
-            self.ext_curve_upd.setData(self.ext_x_data[self.indexes], self.single_histogram[self.indexes], stepMode='right')
-            self.ext_legend.clear()
-            self.ext_legend.append('Particles:  '+'{:.2e}'.format(sum(self.single_histogram[self.indexes]))+' pts')  
-            self.ext_legend.append('Peak:        '+'{:.02f}'.format(self.ext_x_data[np.where(self.single_histogram==np.amax(self.single_histogram[self.indexes]))[0]][0])+' ± '+'{:.02f}'.format(self.error)+' µm')
-            self.ext_legend.append('M. avg:     '+'{:.02f}'.format(np.mean(self.ext_x_data[self.indexes]))+' ± '+'{:.02f}'.format(self.error/np.sqrt(len(self.ext_x_data[self.indexes])))+' µm')
-            try: self.ext_legend.append('W. avg.:   '+'{:.02f}'.format(np.average(self.ext_x_data[self.indexes], weights=self.single_histogram[self.indexes]))+' ± '+'{:.02f}'.format(self.error*np.sqrt(sum(self.single_histogram[self.indexes]**2))/sum(self.single_histogram[self.indexes]))+' µm')
-            except: self.ext_legend.append('W. avg.: nan')
-            self.ext_legend.append('S.D.:         '+'{:.02f}'.format(np.sqrt(np.var((self.ext_x_data[self.indexes]))))+' µm')
-            self.ext_legend.append('1st qnt.:   '+'{:.02f}'.format(np.quantile(self.ext_x_data[self.indexes], 0.25))+' µm')
-            self.ext_legend.append('2nd qnt.:  '+'{:.02f}'.format(np.median(self.ext_x_data[self.indexes]))+' µm')
-            self.ext_legend.append('3rd qnt.:   '+'{:.02f}'.format(np.quantile(self.ext_x_data[self.indexes], 0.75))+' µm')
 
         
             self.RI_curve_upd.setData(self.RI_x_data[self.indexes], self.single_histogram[self.indexes], stepMode='right')

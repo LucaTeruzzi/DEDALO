@@ -27,6 +27,7 @@
 
 
 import os, pyqtgraph as pg, math as m, numpy as np, time, sys                                           # Import required libraries
+from scipy.optimize import curve_fit
 from datetime import datetime
 from scipy.ndimage import uniform_filter1d
 from scipy.interpolate import interp1d
@@ -68,7 +69,6 @@ class Data_corrector(QtWidgets.QMainWindow, object):
         self.connect_widgets()
 
         self.print_on_terminal = False
-        self.instrumental_correction_label = False
         self.ref_index_correction_label = False
         self.aspect_ratio_correction_label = False
         self.run_correction_label = False
@@ -77,11 +77,7 @@ class Data_corrector(QtWidgets.QMainWindow, object):
 
         self.abakus_logo = QPixmap(_PATH+'_icon/abakus_pixmap.png')                                     # Abakus icon
 
-        self.toggle_extinction = AnimatedToggle(checked_color="#028a0f", pulse_checked_color="#03c04a") # Button for activate/inactivate data intrumental calibration
-        self.toggle_extinction.setFixedWidth(90)
-        self.toggle_extinction.setFixedHeight(40)
-        self.grid_extinction.addWidget(self.toggle_extinction)
-        self.toggle_extinction.clicked.connect(self.on_extinction_clicked)
+        self.label_progbar.setText("<b>Progress Bar") 
 
         self.toggle_refractive_index = AnimatedToggle(checked_color="#028a0f", pulse_checked_color="#03c04a")
         self.toggle_refractive_index.setFixedWidth(90)                                                  # Button for activate/inactivate data correction based on user-defined refrative index
@@ -111,12 +107,11 @@ class Data_corrector(QtWidgets.QMainWindow, object):
         self.progressbar.setMinimum(0)
         self.progressbar.setMaximum(100)
         self.progressbar.setValue(0)
-        self.progressbar.move(10, 235)
+        self.progressbar.move(10, 190)
         self.progressbar.setFixedHeight(50)
         self.progressbar.setFixedWidth(250)
         self.progressbar.setTextVisible(True)
 
-        self.label_extinction.setText("Instrumental correction:"+" <b>OFF")
         self.label_ref_index.setText("Refractive index correction:"+" <b>OFF") 
         self.label_aspect_ratio.setText("Aspect-ratio correction  [0, 1]:"+" <b>OFF")
 
@@ -139,20 +134,7 @@ class Data_corrector(QtWidgets.QMainWindow, object):
 
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
-        painter.drawPixmap(QPoint(387, 235), self.abakus_logo.scaled(108, 50, Qt.IgnoreAspectRatio, transformMode = Qt.SmoothTransformation))
-
-
-    # -----------------------------------------------------------------------------------------------------------------------------------------------------#
-    # Function to set the instrumental correction based on polystirene extinction cross-section according to the corresponding button.
-        
-    def on_extinction_clicked(self):
-
-        if self.toggle_extinction.isChecked(): 
-            self.instrumental_correction_label = True                                                   # If the button is 'ON', the label is set to TRUE and 
-            self.label_extinction.setText("Instrumental correction:"+" <b>ON")                          # the calibration is performed
-        else: 
-            self.instrumental_correction_label = False                                                  # If the button is 'OFF', the label is set to FALSE and
-            self.label_extinction.setText("Instrumental correction:"+" <b>OFF")                         # the calibration is not performed
+        painter.drawPixmap(QPoint(387, 190), self.abakus_logo.scaled(108, 50, Qt.IgnoreAspectRatio, transformMode = Qt.SmoothTransformation))
 
 
     # -----------------------------------------------------------------------------------------------------------------------------------------------------#
@@ -193,18 +175,6 @@ class Data_corrector(QtWidgets.QMainWindow, object):
 
 
     # -----------------------------------------------------------------------------------------------------------------------------------------------------#
-    # This method defines the Abakus data correction based on preliminary measurements performed with polystyrene spherical particles (well known refractive index, 
-    # calibrated diameters).
-        
-    def instrumental_calibration_correction(self, sizes):
-
-        self.sizes_cal = sizes - 0.95
-        if self.ref_index_correction_label == False: self.progressbar.setValue(100)
-
-        return self.sizes_cal
-
-
-    # -----------------------------------------------------------------------------------------------------------------------------------------------------#
     # This method defines the Abakus data correction and interpretation on the basis of any refractive index set by the user, different from the polystyrene one
     # with which the instrument is calibrated.
     # Data for this kind of analysis have been computed previously and independently for multipe refractive index values (ranging from 1.3311 to 2.1000) and loaded 
@@ -212,7 +182,10 @@ class Data_corrector(QtWidgets.QMainWindow, object):
     # According to the refractive index real and imaginary part set by the user, assuming that the particles are suspended in water with refractive index 1.3310 @ 670 nm, 
     # the corresponding extinction cross-section curve is selected from the LUT and used for data inversion.
         
+    
     def refractive_index_calibration_correction(self, sizes):
+
+        def f(x, *p): return np.poly1d(p)(x)
 
         t = datetime.now()
 
@@ -242,12 +215,10 @@ class Data_corrector(QtWidgets.QMainWindow, object):
             self.Cext[j] = np.real(self.Cext[j][1:])
 
         diameters_idx = []
-        for i in range(0, len(sizes)): diameters_idx.append(np.where(self.diameters_Cext==round(sizes[i], 2))[0][0])
+        for i in range(0, len(sizes)): diameters_idx.append(np.where(self.diameters_Cext==round(sizes[i]-0.70, 2))[0][0])
 
         polystirene_idx = np.where(np.real(self.m_Cext)==self.m_polystirene.real)[0]                        # Find when the row corresponding to polystirene refractive index 
-        self.Cext_polystirene = self.Cext[polystirene_idx[0]]
-        self.Cext_polystirene_cfr = self.Cext_polystirene[diameters_idx]
-        
+ 
         idx = np.where(np.real(self.m_Cext)==self.m.real)[0]                                                # Find when the experimental refractive index is equal to some 
         if len(idx) > 1:                                                                                    # value ammong the LUT ones
             self.selected_Cext = 0                                                                          # If more than one is found, the average Cext is computed
@@ -259,25 +230,45 @@ class Data_corrector(QtWidgets.QMainWindow, object):
             self.selected_Cext = self.Cext[idx[0]]
         idx = 0
 
-        self.n_range = np.array([1.42, 1.46, 1.50, 1.53, 1.58, 1.64])
-        self.s_range = np.array([200, 180, 147, 145, 125, 115])
+        self.selected_Cext_cfr = self.selected_Cext[diameters_idx]
+
+        self.n_range = np.array([1.42, 1.46, 1.47, 1.48, 1.50, 1.51, 1.52, 1.53, 1.56, 1.58, 1.64])
+        self.s_range = np.array([100, 125, 150, 150, 150, 150, 150, 125, 125, 100, 100])
         self.poly_coefficients = np.polyfit(self.n_range, self.s_range, 3)
         self._poly_fit = np.poly1d(self.poly_coefficients)
 
-        self.size_avg = self._poly_fit(self.ref_index_Re)
+        self.size_avg = self._poly_fit(1.58)
 
         self.poly_fit = interp1d(uniform_filter1d(self.selected_Cext, size=int(self.size_avg)), self.diameters_Cext, kind='linear', fill_value='extrapolate') 
 
+        true_pos = np.array([1.0, 1.8, 2.9, 3.7, 5, 10])
+        false_pos = np.array([1.05, 2.5, 3.7, 4.1, 5.8, 10])
+        false_pos_dev = np.array([0.1, 0.3, 0.2, 0.3, 0.3, 0.2])
+        selected_Cext_interp = interp1d(self.poly_fit(self.selected_Cext), self.selected_Cext, kind='linear', fill_value='extrapolate')
+
+        sigma = np.array([0.01, 0.01, 0.01, 0.01, 0.01, 0.01])
+        p1, _ = curve_fit(f, false_pos, selected_Cext_interp(true_pos), (0, 0, 0, 0, 0), sigma=sigma)
+
+        self.cal_curve = interp1d(self.diameters_Cext, f(self.diameters_Cext, *p1), kind='linear', fill_value='extrapolate')
+
+        self.Cext_polystirene = self.Cext[polystirene_idx[0]]
+        self.Cext_polystirene_cfr = self.cal_curve(sizes)
+        self.Cext_polystirene_cfr[self.Cext_polystirene_cfr<=0.0001] = 0.0001
         self.sizes_RI_idx, self.sizes_RI = [], np.zeros(len(sizes))
         self.interp_xaxis = np.arange(self.selected_Cext[0], self.selected_Cext[-1], 0.001)
         for j in range(0, len(self.Cext_polystirene_cfr)):                                                  # Data correction
             if self.btn_stop.isChecked(): break
             idx = np.where(abs(self.interp_xaxis - self.Cext_polystirene_cfr[j]) < 0.001)[0]
             if len(idx) > 1:
-                for i in range(0, len(idx)): self.sizes_RI[j] += self.poly_fit(self.interp_xaxis[idx[i]])  
+                for i in range(0, len(idx)): 
+                    a = self.poly_fit(self.interp_xaxis[idx[i]])
+                    self.sizes_RI[j] += a
                 self.sizes_RI[j] = self.sizes_RI[j]/len(idx)
             else: 
-                self.sizes_RI[j] = self.poly_fit(self.interp_xaxis[idx[0]])
+                aa =  self.poly_fit(self.interp_xaxis[idx[0]])
+                self.sizes_RI[j] = aa
+
+        self.sizes_RI[self.sizes_RI<=0.] = 0.5
 
         return self.sizes_RI, self.ref_index_Re, self.ref_index_Im, self.diameters_Cext, self.Cext_polystirene, self.selected_Cext, self.poly_fit
 
